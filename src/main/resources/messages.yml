@@ -1,0 +1,14 @@
+# RandomChest Messages
+
+prefix: "&7[&eRandomChest&7] "
+
+only-game: "&cThis command is not available in the console."
+no-permission: "&cInsufficient permissions."
+reload: "&aConfiguration and database has been reloaded."
+selected: "&7Selected ''&e%type%&7''. Hold &e%item% &7and right click a chest."
+type-not-found: "&7Type ''&e%type%&7'' does not exist."
+unselect: "&7Cleared."
+restore: "&7Chests restored."
+add: "&7Chest added to base."
+remove: "&7Chest removed from base."
+usage: "&cUsage: /randomchest <reload|select|unselect|restore>"

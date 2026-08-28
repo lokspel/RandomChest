@@ -1,0 +1,19 @@
+name: RandomChest
+version: ${project.version}
+main: me.lokspel.randomchest.RandomChest
+api-version: '1.8'
+description: Random chest loot plugin
+
+commands:
+  randomchest:
+    description: Main RandomChest command
+    usage: /<command> [reload|select|unselect|restore|random]
+    aliases: [rs]
+
+permissions:
+  randomchest.use:
+    description: Allows using random chests
+    default: true
+  randomchest.admin:
+    description: Allows admin commands
+    default: op
