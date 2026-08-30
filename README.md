@@ -1,17 +1,16 @@
 # RandomChest
 
-Random loot chest plugin for Spigot 1.8.8. Register chests, fill them with random items from configurable loot tables, and respawn them on a timer.
+Random loot chest plugin for Spigot. Register chests, fill them with random items from configurable loot tables, and respawn them on a timer. Cross-version API differences are handled via reflection, no runtime dependencies.
 
 ## Features
 
-- Multiple chest types with configurable loot tables
-- Random item selection with min/max item count per chest
-- Enchantment support (random or configured)
-- Potion, skull, custom name, and lore support
-- Configurable respawn delay per chest type
-- Chest destruction toggle per type
-- Redstone power control per type
-- Item durability ranges
+- Multiple chest types, each with its own loot table
+- Random loot with adjustable item count per chest (min/max)
+- Enchantments — random per item type or explicitly configured
+- Potions, player skulls, custom names and lore
+- Per-type respawn timer, chests refill after the delay elapses
+- Per-type option to let chests be destroyed by players
+- Item durability ranges (as percentage of max durability)
 
 ## Commands
 
@@ -24,67 +23,72 @@ Random loot chest plugin for Spigot 1.8.8. Register chests, fill them with rando
 
 ## How to use
 
-1. `/randomchest select 1` — select chest type
-2. Hold the select tool (289 / powder) in hand
+1. `/randomchest select example` — select a chest type (must match a key in `chestset`)
+2. Hold the select tool (`GUNPOWDER` / id 289) in hand
 3. Right-click a chest in creative mode — chest is registered
 4. `/randomchest unselect` — clear selection
 
 Registered chests auto-fill with random loot when opened and respawn after a delay.
+
+To remove a chest, hold the remove tool (`SUGAR` / id 353) and right-click the chest in creative mode.
 
 ## Configuration
 
 ### `config.yml`
 
 ```yaml
-# Locale file name (without .properties)
-locale: en_US
-
-# Select tool item ID (289 = powder)
-select-tool: 289
-# Remove tool item ID (353 = sugar)
-remove-tool: 353
-
-# Chest types
+# MODERN config: items use material names.
+# For legacy servers (1.8-1.12) replace the names with numeric ids:
+#   IRON_SWORD  -> id: 268
+#   POTION      -> id: 373
+#   RED_WOOL    -> id: 35  (color via data: 14)
+#   PLAYER_HEAD -> id: 397
+# select-tool / remove-tool accept a name or a legacy id too.
+select-tool: GUNPOWDER #powder (legacy id: 289)
+remove-tool: SUGAR #sugar (legacy id: 353)
 chestset:
-  1: # Type name
-    min: 1 # The minimum number of possible loot
-    max: 2 # Maximum possible loot
-    customname: "&e[&0&l Сундук&e ]"
-    powered: false # Turn on redstone control
-    break: false # Include the destruction of chests
-    respawn: [45, 60, 75, 80] # Time in seconds through which to put things respawn
+  example: #Type name
+    min: 1 #The minimum number of possible loot
+    max: 3 #Maximum possible loot
+    customname: "Example"
+    powered: false #Turn on redstone control
+    break: false #Include the destruction of chests
+    respawn: [15, 30, 45] #Time in seconds through which to put things respawn
     items:
-      - id: 310
-        amount: 1
-        random-enchant: true
-      - id: 310
-        amount: 1
-      - id: 261
-        amount: 1
-        random-enchant: true
-      - id: 262
-        amount: 30
-      - id: 322
-        data: 1
-        amount: 10
-      - id: 384
-        amount: 30
+      - material: IRON_SWORD #legacy id: 268
+        random-enchant: false #Include random enchantment
+        enchantments:
+          - name: KNOCKBACK #Type of enchantment
+            level: 1 #Enchantment level
+        name: "My Sword" #A new name for things
+        lore: ["Line 1", "Line 2", "Line 3"] #Description of things
+        amount: 1 #amount
+      - material: POTION #legacy id: 373
+        potion-type: INSTANT_HEAL #Potion type
+        potion-level: 2 #Potion level
+        potion-splash: false #To make an explosive potion
+      - material: RED_WOOL #legacy id: 35 + data 14
+        data: 14 #Thing data (legacy; ignored on modern)
+        amount: 5
+      - material: PLAYER_HEAD #legacy id: 397
+        skull: "Notch" #Nickname of the owner of the head
 ```
 
 ### Item fields
 
 | Field | Description |
 |---|---|
-| `id` | Material ID |
+| `material` | Material name (modern servers) |
+| `id` | Material ID, used when `material` is absent (legacy servers) |
 | `amount` | Stack size |
-| `data` | Material data value |
-| `durability` | Durability range `[min, max]` as percentages |
-| `random-enchant` | Apply random enchantments |
-| `enchantments` | List of specific enchantments |
+| `data` | Material data value (legacy meta) |
+| `durability` | Durability range `[min, max]`, percent of max durability (applied only when both values are set) |
+| `random-enchant` | Apply a random enchantment (pool depends on item type) |
+| `enchantments` | List of `name` / `level` — used when `random-enchant` is false |
 | `name` | Custom display name |
-| `lore` | Custom lore lines |
+| `lore` | Lore lines |
 | `skull` | Player name for skull owner |
-| `potion-type` | Potion type name |
+| `potion-type` | Potion effect (only for potion materials) |
 | `potion-level` | Potion level |
 | `potion-splash` | Make it a splash potion |
 
@@ -94,18 +98,33 @@ chestset:
 |---|---|
 | `min` | Minimum items per chest |
 | `max` | Maximum items per chest |
-| `customname` | Chest custom name |
-| `powered` | Redstone control |
-| `break` | Allow chest destruction |
-| `respawn` | Respawn delay in seconds (random from list) |
+| `customname` | **Not implemented yet**, reserved |
+| `powered` | Redstone control — **not implemented yet**, reserved |
+| `break` | Allow chests to be destroyed by players |
+| `respawn` | Respawn delay in seconds (random value from the list) |
 
 ### `messages.yml`
 
-All messages support `&` color codes. Insert the prefix with `%prefix%`. Placeholders: `%type%`, `%item%`.
+```yaml
+prefix: "&7[&eRandomChest&7] "
+only-game: "&cThis command is not available in the console."
+no-permission: "&cInsufficient permissions."
+reload: "&aConfiguration and database has been reloaded."
+selected: "&7Selected ''&e%type%&7''. Hold &e%item% &7and right click a chest."
+type-not-found: "&7Type ''&e%type%&7'' does not exist."
+unselect: "&7Cleared."
+restore: "&7Chests restored."
+add: "&7Chest added to base."
+remove: "&7Chest removed from base."
+usage: "&cUsage: /randomchest <reload|select|unselect|restore>"
+```
+
+All message values support `&` color codes; use `%prefix%` to insert the prefix.
+Available placeholders: `%type%`, `%item%`.
 
 ## Building
 
-Requires Java 8 and Maven.
+Requires Java 21 and Maven.
 
 ```sh
 mvn clean package
@@ -115,5 +134,9 @@ The output jar is `target/RandomChest-1.0-SNAPSHOT.jar`.
 
 ## Requirements
 
-- Spigot / PandaSpigot 1.8.8
-- Java 8
+- PandaSpigot 1.8.8 through Paper 26.2
+- Java 21+ runtime
+
+> Note: numeric material IDs only resolve on servers where `Material.getId()`
+> still exists; on newer Paper versions prefer `material`/`type` names in the
+> config.

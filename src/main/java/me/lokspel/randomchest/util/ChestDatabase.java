@@ -53,10 +53,9 @@ public final class ChestDatabase {
     }
 
     public Set<String> getAllKeys() {
-        if (config.getConfigurationSection("chest") == null) {
-            return Collections.emptySet();
-        }
-        return config.getConfigurationSection("chest").getKeys(false);
+        org.bukkit.configuration.ConfigurationSection section =
+                config.getConfigurationSection("chest");
+        return section == null ? Collections.emptySet() : section.getKeys(false);
     }
 
     public Block getBlock(String key) {

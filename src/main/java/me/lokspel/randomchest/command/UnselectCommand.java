@@ -14,12 +14,11 @@ public class UnselectCommand implements SubCommand {
 
     @Override
     public boolean execute(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player)) {
+        if (!(sender instanceof Player player)) {
             sender.sendMessage(plugin.getMessages().prefixed("only-game"));
             return true;
         }
 
-        Player player = (Player) sender;
         plugin.getChestUtil().removeSelectedType(player);
         sender.sendMessage(plugin.getMessages().prefixed("unselect"));
         return true;

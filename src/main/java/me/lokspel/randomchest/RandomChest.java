@@ -19,15 +19,8 @@ import java.util.Objects;
 
 public final class RandomChest extends JavaPlugin {
 
-    private static RandomChest instance;
-
     private MessagesConfig messages;
     private ChestUtil chestUtil;
-
-    @Override
-    public void onLoad() {
-        instance = this;
-    }
 
     @Override
     public void onEnable() {
@@ -58,10 +51,6 @@ public final class RandomChest extends JavaPlugin {
         if (chestUtil != null) {
             chestUtil.forceChestsRespawn();
         }
-    }
-
-    public static RandomChest getInstance() {
-        return instance;
     }
 
     public MessagesConfig getMessages() {

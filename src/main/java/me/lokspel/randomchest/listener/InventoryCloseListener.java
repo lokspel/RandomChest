@@ -2,12 +2,12 @@ package me.lokspel.randomchest.listener;
 
 import me.lokspel.randomchest.RandomChest;
 import me.lokspel.randomchest.util.ChestUtil;
+import me.lokspel.randomchest.util.ReflectionUtil;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
 
-import java.util.Set;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -30,9 +30,9 @@ public class InventoryCloseListener implements Listener {
         }
 
         Player player = (Player) event.getPlayer();
-        Block block = player.getTargetBlock((Set<Material>) null, 5);
+        Block block = ReflectionUtil.getTargetBlock(player, 5);
 
-        if (!block.getType().equals(Material.CHEST)) {
+        if (block == null || !block.getType().equals(Material.CHEST)) {
             return;
         }
 

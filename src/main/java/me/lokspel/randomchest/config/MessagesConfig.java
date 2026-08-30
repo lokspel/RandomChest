@@ -7,6 +7,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 
+@SuppressWarnings("deprecation")
 public final class MessagesConfig {
 
     private static final String PREFIX_KEY = "prefix";

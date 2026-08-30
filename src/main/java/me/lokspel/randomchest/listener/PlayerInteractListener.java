@@ -2,6 +2,7 @@ package me.lokspel.randomchest.listener;
 
 import me.lokspel.randomchest.RandomChest;
 import me.lokspel.randomchest.util.ChestUtil;
+import me.lokspel.randomchest.util.ReflectionUtil;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -32,8 +33,8 @@ public class PlayerInteractListener implements Listener {
             return;
         }
 
-        int selectTool = plugin.getConfig().getInt("select-tool");
-        int removeTool = plugin.getConfig().getInt("remove-tool");
+        Material selectTool = utils.getToolMaterial("select-tool");
+        Material removeTool = utils.getToolMaterial("remove-tool");
 
         if (action.equals(Action.RIGHT_CLICK_BLOCK) && block.getType().equals(Material.CHEST)) {
             handleRightClick(player, event, block, selectTool, removeTool);
@@ -46,11 +47,11 @@ public class PlayerInteractListener implements Listener {
     }
 
     private void handleRightClick(Player player, PlayerInteractEvent event, Block block,
-                                  int selectTool, int removeTool) {
+                                  Material selectTool, Material removeTool) {
         Chest chest = (Chest) block.getState();
 
         if (utils.haveSelectedType(player)
-                && player.getItemInHand().getType().equals(utils.getMaterialById(selectTool))
+                && selectTool != null && ReflectionUtil.getItemInHand(player).getType().equals(selectTool)
                 && player.getGameMode().equals(GameMode.CREATIVE)) {
             utils.addChest(player, block);
             player.sendMessage(plugin.getMessages().prefixed("add"));
@@ -58,7 +59,8 @@ public class PlayerInteractListener implements Listener {
             return;
         }
 
-        if (player.getItemInHand().getType().equals(utils.getMaterialById(removeTool))
+        if (removeTool != null
+                && ReflectionUtil.getItemInHand(player).getType().equals(removeTool)
                 && player.getGameMode().equals(GameMode.CREATIVE)) {
             utils.removeChest(block);
             player.sendMessage(plugin.getMessages().prefixed("remove"));

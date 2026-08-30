@@ -12,7 +12,7 @@
     <name>RandomChest</name>
 
     <properties>
-        <java.version>1.8</java.version>
+        <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -24,8 +24,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <release>${java.version}</release>
                 </configuration>
             </plugin>
             <plugin>
@@ -52,16 +51,16 @@
 
     <repositories>
         <repository>
-            <id>hpfxd-repo</id>
-            <url>https://repo.hpfxd.com/releases/</url>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
     </repositories>
 
     <dependencies>
         <dependency>
-            <groupId>com.hpfxd.pandaspigot</groupId>
-            <artifactId>pandaspigot-api</artifactId>
-            <version>1.8.8-R0.1-SNAPSHOT</version>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>[26.2.build,)</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

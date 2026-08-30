@@ -15,7 +15,7 @@ public class SelectCommand implements SubCommand {
 
     @Override
     public boolean execute(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player)) {
+        if (!(sender instanceof Player player)) {
             sender.sendMessage(plugin.getMessages().prefixed("only-game"));
             return true;
         }
@@ -25,7 +25,6 @@ public class SelectCommand implements SubCommand {
             return true;
         }
 
-        Player player = (Player) sender;
         String typeName = args[0];
 
         if (!plugin.getConfig().contains("chestset." + typeName)) {
@@ -33,9 +32,8 @@ public class SelectCommand implements SubCommand {
             return true;
         }
 
-        int selectTool = plugin.getConfig().getInt("select-tool");
         plugin.getChestUtil().selectType(player, typeName);
-        Material tool = plugin.getChestUtil().getMaterialById(selectTool);
+        Material tool = plugin.getChestUtil().getToolMaterial("select-tool");
         String toolName = tool != null ? tool.name() : "UNKNOWN";
         sender.sendMessage(plugin.getMessages().get("selected",
                 "type", typeName,

@@ -2,6 +2,8 @@ package me.lokspel.randomchest.util;
 
 import me.lokspel.randomchest.RandomChest;
 import me.lokspel.randomchest.task.RespawnTask;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
@@ -12,21 +14,23 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
-import org.bukkit.potion.Potion;
-import org.bukkit.potion.PotionType;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
 public class ChestUtil {
 
     private final RandomChest plugin;
     private final ChestDatabase database;
-    private final Random rnd = new Random();
+    private final Random random = new Random();
 
-    private final HashMap<String, Long[]> refillDelay = new HashMap<>();
-    private final ConcurrentHashMap<String, Long[]> respawnDelay = new ConcurrentHashMap<>();
-    private final HashMap<Player, String> selectType = new HashMap<>();
+    private final Map<String, RefillData> refillDelays = new HashMap<>();
+    private final Map<Location, Long> respawnDelays = new HashMap<>();
+    private final Map<Player, String> selectedTypes = new HashMap<>();
 
     public ChestUtil(RandomChest plugin) {
         this.plugin = plugin;
@@ -40,6 +44,7 @@ public class ChestUtil {
     public void restoreAllChests() {
         for (String key : database.getAllKeys()) {
             Block block = database.getBlock(key);
+
             if (block != null) {
                 block.setType(Material.CHEST);
             }
@@ -54,7 +59,7 @@ public class ChestUtil {
     public void removeChest(Block block) {
         database.removeChest(block);
         database.save();
-        respawnDelay.remove(toKey(block));
+        respawnDelays.remove(block.getLocation());
     }
 
     public String getChestType(Block block) {
@@ -62,254 +67,450 @@ public class ChestUtil {
     }
 
     public void selectType(Player player, String type) {
-        selectType.put(player, type);
+        selectedTypes.put(player, type);
     }
 
     public String getSelectedType(Player player) {
-        return selectType.get(player);
+        return selectedTypes.get(player);
     }
 
     public boolean haveSelectedType(Player player) {
-        return selectType.containsKey(player);
+        return selectedTypes.containsKey(player);
     }
 
     public void removeSelectedType(Player player) {
-        selectType.remove(player);
+        selectedTypes.remove(player);
     }
 
     public void addRefillDelay(Chest chest, long delay) {
-        refillDelay.put(toKey(chest.getBlock()), new Long[]{System.currentTimeMillis(), delay});
+        refillDelays.put(
+                toKey(chest.getBlock()),
+                new RefillData(System.currentTimeMillis(), delay)
+        );
     }
 
     public boolean canRefill(Chest chest) {
         String key = toKey(chest.getBlock());
-        if (!refillDelay.containsKey(key)) {
+        RefillData data = refillDelays.get(key);
+
+        if (data == null) {
             return true;
         }
-        Long[] data = refillDelay.get(key);
-        if (System.currentTimeMillis() - data[0] > data[1]) {
-            refillDelay.remove(key);
+
+        if (System.currentTimeMillis() - data.createdAt() > data.delay()) {
+            refillDelays.remove(key);
             return true;
         }
+
         return false;
     }
 
     public void addRespawnDelay(Chest chest, long delay) {
-        respawnDelay.put(toKey(chest.getBlock()), new Long[]{System.currentTimeMillis(), delay});
+        respawnDelays.put(
+                chest.getBlock().getLocation(),
+                System.currentTimeMillis() + delay
+        );
     }
 
     public int getRespawnDelay(String type) {
-        List<Integer> list = plugin.getConfig().getIntegerList("chestset." + type.toLowerCase() + ".respawn");
-        if (list != null && !list.isEmpty()) {
-            return list.get(random(0, list.size() - 1));
-        }
-        return 30;
+        List<Integer> delays = plugin.getConfig().getIntegerList(
+                chestSetPath(type) + ".respawn"
+        );
+
+        return delays.isEmpty() ? 30 : randomFrom(delays);
     }
 
     public boolean isProtected(String type) {
-        return !plugin.getConfig().getBoolean("chestset." + type.toLowerCase() + ".break", false);
+        return !plugin.getConfig().getBoolean(
+                chestSetPath(type) + ".break",
+                false
+        );
     }
 
     public void forceChestsRespawn() {
-        Iterator<Map.Entry<String, Long[]>> iterator = respawnDelay.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<String, Long[]> entry = iterator.next();
-            iterator.remove();
-            String[] parts = entry.getKey().split(",");
-            org.bukkit.World world = plugin.getServer().getWorld(parts[0]);
-            if (world != null) {
-                Block block = world.getBlockAt(
-                        Integer.parseInt(parts[1]),
-                        Integer.parseInt(parts[2]),
-                        Integer.parseInt(parts[3])
-                );
-                block.setType(Material.CHEST);
-            }
-        }
+        respawnDelays.keySet().forEach(location ->
+                location.getBlock().setType(Material.CHEST)
+        );
+
+        respawnDelays.clear();
     }
 
     public void startChestsRespawn() {
         plugin.getServer().getScheduler().runTaskTimer(
                 plugin,
-                new RespawnTask(respawnDelay),
+                new RespawnTask(respawnDelays),
                 20L,
                 20L
         );
     }
 
     public void fill(Chest chest, String type) {
-        int min = plugin.getConfig().getInt("chestset." + type + ".min", 1);
-        int max = plugin.getConfig().getInt("chestset." + type + ".max", 4);
-        List<Map<?, ?>> items = plugin.getConfig().getMapList("chestset." + type + ".items");
+        String path = chestSetPath(type);
 
-        Inventory inv = chest.getInventory();
-        inv.clear();
+        int min = plugin.getConfig().getInt(path + ".min", 1);
+        int max = plugin.getConfig().getInt(path + ".max", 4);
 
-        int count = random(min, max);
-        for (int i = 0; i < count; i++) {
+        List<Map<?, ?>> items = plugin.getConfig().getMapList(
+                path + ".items"
+        );
+
+        Inventory inventory = chest.getInventory();
+        inventory.clear();
+
+        for (int i = 0; i < random(min, max); i++) {
             ItemStack item = buildRandomItem(items);
+
             if (item != null) {
-                addItemToRandomSlot(inv, item);
+                addItemToRandomSlot(inventory, item);
             }
         }
     }
 
-    @SuppressWarnings("unchecked")
     private ItemStack buildRandomItem(List<Map<?, ?>> items) {
-        Map<?, ?> map = items.get(random(0, items.size() - 1));
-
-        int id = ItemUtil.getInt(map, "id");
-        if (id <= 0) return null;
-
-        int data = ItemUtil.getInt(map, "data");
-        int amount = Math.max(ItemUtil.getInt(map, "amount"), 1);
-        String name = (String) map.get("name");
-        List<?> lore = getList(map, "lore");
-        String skull = (String) map.get("skull");
-
-        Object durabilityObj = map.get("durability");
-        List<Integer> durabilityRange = null;
-        if (durabilityObj instanceof List) {
-            durabilityRange = (List<Integer>) durabilityObj;
+        if (items.isEmpty()) {
+            return null;
         }
 
-        boolean randomEnchant = ItemUtil.getBoolean(map, "random-enchant");
-        List<?> enchantments = getList(map, "enchantments");
+        Map<?, ?> config = randomFrom(items);
+        Material material = getMaterial(config);
 
-        Material mat = MaterialUtil.getMaterialById(id);
-        if (mat == null) return null;
-
-        if (mat.equals(Material.POTION)) {
-            return buildPotion(map, amount);
+        if (material == null) {
+            return null;
         }
 
-        ItemStack item = new ItemStack(mat, amount);
-        if (data != 0) {
-            item.setDurability((short) data);
+        int amount = Math.max(
+                ItemUtil.getInt(config, "amount"),
+                1
+        );
+
+        if (MaterialUtil.isPotion(material)) {
+            return buildPotion(config, material, amount);
         }
 
-        if (randomEnchant) {
-            applyRandomEnchant(item);
-        } else {
-            applyConfiguredEnchants(item, enchantments);
-        }
+        ItemStack item = new ItemStack(material, amount);
 
-        if (durabilityRange != null && durabilityRange.size() == 2) {
-            applyRandomDurability(item, durabilityRange.get(0), durabilityRange.get(1));
-        }
+        applyItemData(item, config);
 
-        applyMeta(item, name, lore, skull);
         return item;
     }
 
-    private ItemStack buildPotion(Map<?, ?> map, int amount) {
-        PotionType type = PotionType.valueOf((String) map.get("potion-type"));
-        int level = Math.max(ItemUtil.getInt(map, "potion-level"), 1);
-        boolean splash = ItemUtil.getBoolean(map, "potion-splash");
+    private void applyItemData(ItemStack item, Map<?, ?> config) {
+        applyDamage(item, ItemUtil.getInt(config, "data"));
+        applyEnchantments(item, config);
+        applyDurability(item, config);
+        applyMeta(item, config);
+    }
 
-        Potion potion = new Potion(PotionType.WATER);
-        potion.setType(type);
-        if (!potion.getType().equals(PotionType.WATER)) {
-            potion.setSplash(splash);
-            potion.setLevel(Math.min(level, potion.getType().getMaxLevel()));
+    private Material getMaterial(Map<?, ?> config) {
+        Object material = config.get("material");
+
+        if (material == null) {
+            material = config.get("type");
         }
-        return potion.toItemStack(amount);
+
+        if (material == null) {
+            material = config.get("id");
+        }
+
+        return MaterialUtil.getMaterial(material);
+    }
+
+    private void applyDamage(ItemStack item, int damage) {
+        if (damage > 0) {
+            ReflectionUtil.setDamage(item, damage);
+        }
+    }
+
+    private void applyEnchantments(ItemStack item, Map<?, ?> config) {
+        if (ItemUtil.getBoolean(config, "random-enchant")) {
+            applyRandomEnchant(item);
+            return;
+        }
+
+        applyConfiguredEnchants(
+                item,
+                getList(config, "enchantments")
+        );
+    }
+
+    private void applyDurability(ItemStack item, Map<?, ?> config) {
+        List<?> durability = getList(config, "durability");
+
+        if (durability.size() != 2) {
+            return;
+        }
+
+        Integer min = toInt(durability.get(0));
+        Integer max = toInt(durability.get(1));
+
+        if (min == null || max == null) {
+            return;
+        }
+
+        applyRandomDurability(item, min, max);
+    }
+
+    private void applyMeta(ItemStack item, Map<?, ?> config) {
+        applyMeta(
+                item,
+                (String) config.get("name"),
+                getList(config, "lore"),
+                (String) config.get("skull")
+        );
+    }
+
+    private ItemStack buildPotion(
+            Map<?, ?> config,
+            Material material,
+            int amount
+    ) {
+        String type = (String) config.get("potion-type");
+
+        int level = Math.max(
+                ItemUtil.getInt(config, "potion-level"),
+                1
+        );
+
+        boolean splash = ItemUtil.getBoolean(config, "potion-splash")
+                || MaterialUtil.isSplashPotion(material);
+
+        ItemStack legacy = PotionUtil.buildLegacy(
+                type,
+                splash,
+                level,
+                amount
+        );
+
+        return legacy != null
+                ? legacy
+                : PotionUtil.buildMeta(type, splash, amount);
     }
 
     private void applyRandomEnchant(ItemStack item) {
         if (ItemUtil.isBow(item)) {
-            randomEnchant(item, Enchantment.ARROW_DAMAGE, Enchantment.ARROW_KNOCKBACK,
-                    Enchantment.ARROW_FIRE, Enchantment.ARROW_INFINITE);
-        } else if (ItemUtil.isSword(item)) {
-            randomEnchant(item, Enchantment.DAMAGE_ALL, Enchantment.DAMAGE_UNDEAD,
-                    Enchantment.DAMAGE_ARTHROPODS, Enchantment.KNOCKBACK, Enchantment.FIRE_ASPECT);
-        } else if (ItemUtil.isHelmet(item)) {
-            randomEnchant(item, Enchantment.OXYGEN, Enchantment.WATER_WORKER);
-        } else if (ItemUtil.isBoots(item)) {
-            randomEnchant(item, Enchantment.PROTECTION_FALL);
-        } else if (ItemUtil.isChestplate(item)) {
-            randomEnchant(item, Enchantment.PROTECTION_ENVIRONMENTAL, Enchantment.PROTECTION_FIRE,
-                    Enchantment.PROTECTION_EXPLOSIONS, Enchantment.PROTECTION_PROJECTILE);
+            randomEnchant(
+                    item,
+                    "POWER",
+                    "PUNCH",
+                    "FLAME",
+                    "INFINITY"
+            );
+            return;
+        }
+
+        if (ItemUtil.isSword(item)) {
+            randomEnchant(
+                    item,
+                    "SHARPNESS",
+                    "SMITE",
+                    "BANE_OF_ARTHROPODS",
+                    "KNOCKBACK",
+                    "FIRE_ASPECT"
+            );
+            return;
+        }
+
+        if (ItemUtil.isHelmet(item)) {
+            randomEnchant(
+                    item,
+                    "RESPIRATION",
+                    "AQUA_AFFINITY"
+            );
+            return;
+        }
+
+        if (ItemUtil.isBoots(item)) {
+            randomEnchant(
+                    item,
+                    "FEATHER_FALLING"
+            );
+            return;
+        }
+
+        if (ItemUtil.isChestplate(item)) {
+            randomEnchant(
+                    item,
+                    "PROTECTION",
+                    "FIRE_PROTECTION",
+                    "BLAST_PROTECTION",
+                    "PROJECTILE_PROTECTION"
+            );
         }
     }
 
-    private void randomEnchant(ItemStack item, Enchantment... pool) {
+    private void randomEnchant(ItemStack item, String... pool) {
+        if (pool.length == 0) {
+            return;
+        }
+
         int count = random(1, pool.length);
+
         for (int i = 0; i < count; i++) {
-            Enchantment ench = pool[random(0, pool.length - 1)];
-            int level = random(ench.getStartLevel(), ench.getMaxLevel());
-            item.addUnsafeEnchantment(ench, level);
-        }
-    }
+            Enchantment enchantment = EnchantmentUtil.getByName(
+                    pool[random(0, pool.length - 1)]
+            );
 
-    private void applyConfiguredEnchants(ItemStack item, List<?> enchantments) {
-        for (Object obj : enchantments) {
-            Map<?, ?> enchMap = (Map<?, ?>) obj;
-            String enchName = (String) enchMap.get("name");
-            int enchLevel = Math.max(ItemUtil.getInt(enchMap, "level"), 1);
-
-            Enchantment ench = Enchantment.getByName(enchName);
-            if (ench != null) {
-                enchLevel = Math.max(enchLevel, ench.getStartLevel());
-                enchLevel = Math.min(enchLevel, ench.getMaxLevel());
-                item.addUnsafeEnchantment(ench, enchLevel);
+            if (enchantment == null) {
+                continue;
             }
+
+            int level = random(
+                    enchantment.getStartLevel(),
+                    enchantment.getMaxLevel()
+            );
+
+            item.addUnsafeEnchantment(enchantment, level);
         }
     }
 
-    private void applyRandomDurability(ItemStack item, int minPercent, int maxPercent) {
-        short maxDur = item.getType().getMaxDurability();
-        if (maxDur == 0) return;
-        int from = (int) (maxDur / 100.0 * minPercent);
-        int to = (int) (maxDur / 100.0 * maxPercent);
-        item.setDurability((short) random(from, to));
+    private void applyConfiguredEnchants(
+            ItemStack item,
+            List<?> enchantments
+    ) {
+        for (Object object : enchantments) {
+            if (!(object instanceof Map<?, ?> config)) {
+                continue;
+            }
+
+            String name = (String) config.get("name");
+
+            int level = Math.max(
+                    ItemUtil.getInt(config, "level"),
+                    1
+            );
+
+            Enchantment enchantment = EnchantmentUtil.getByName(name);
+
+            if (enchantment == null) {
+                continue;
+            }
+
+            level = Math.max(
+                    level,
+                    enchantment.getStartLevel()
+            );
+
+            level = Math.min(
+                    level,
+                    enchantment.getMaxLevel()
+            );
+
+            item.addUnsafeEnchantment(enchantment, level);
+        }
     }
 
-    private void applyMeta(ItemStack item, String name, List<?> lore, String skull) {
+    private void applyRandomDurability(
+            ItemStack item,
+            int minPercent,
+            int maxPercent
+    ) {
+        int maxDurability = ReflectionUtil.getMaxDurability(item);
+
+        if (maxDurability <= 0) {
+            return;
+        }
+
+        int from = (int) (maxDurability * minPercent / 100.0);
+        int to = (int) (maxDurability * maxPercent / 100.0);
+
+        ReflectionUtil.setDamage(
+                item,
+                random(from, to)
+        );
+    }
+
+    @SuppressWarnings("deprecation")
+    private void applyMeta(
+            ItemStack item,
+            String name,
+            List<?> lore,
+            String skull
+    ) {
         ItemMeta meta = item.getItemMeta();
-        if (meta == null) return;
+
+        if (meta == null) {
+            return;
+        }
 
         if (name != null) {
             meta.setDisplayName(name);
         }
 
-        if (lore != null && !lore.isEmpty()) {
-            List<String> loreStrings = new ArrayList<>();
+        if (!lore.isEmpty()) {
+            List<String> lines = new ArrayList<>();
+
             for (Object line : lore) {
-                loreStrings.add(String.valueOf(line));
+                lines.add(String.valueOf(line));
             }
-            meta.setLore(loreStrings);
+
+            meta.setLore(lines);
         }
 
-        if (skull != null && meta instanceof SkullMeta) {
-            item.setDurability((short) 3);
-            ((SkullMeta) meta).setOwner(skull);
+        if (skull != null && meta instanceof SkullMeta skullMeta) {
+            skullMeta.setPlayerProfile(
+                    Bukkit.createProfile(skull)
+            );
         }
 
         item.setItemMeta(meta);
     }
 
-    private void addItemToRandomSlot(Inventory inventory, ItemStack item) {
-        int slot = random(0, inventory.getSize() - 1);
-        if (inventory.getItem(slot) != null) {
-            addItemToRandomSlot(inventory, item);
-        } else {
-            inventory.setItem(slot, item);
+    private void addItemToRandomSlot(
+            Inventory inventory,
+            ItemStack item
+    ) {
+        List<Integer> emptySlots = new ArrayList<>();
+
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            if (inventory.getItem(slot) == null) {
+                emptySlots.add(slot);
+            }
         }
+
+        if (emptySlots.isEmpty()) {
+            return;
+        }
+
+        inventory.setItem(
+                randomFrom(emptySlots),
+                item
+        );
     }
 
-    public Material getMaterialById(int id) {
-        return MaterialUtil.getMaterialById(id);
+    public Material getToolMaterial(String path) {
+        return MaterialUtil.getMaterial(
+                plugin.getConfig().get(path)
+        );
     }
 
     public boolean isSetExist(String type) {
-        ConfigurationSection section = plugin.getConfig().getConfigurationSection("chestset");
-        return section != null && section.getKeys(false).contains(type.toLowerCase());
+        ConfigurationSection section =
+                plugin.getConfig().getConfigurationSection("chestset");
+
+        return section != null
+                && section.getKeys(false).contains(type.toLowerCase());
     }
 
     public int random(int min, int max) {
-        if (min == 0 && max == 0) return 0;
-        return rnd.nextInt(max - min + 1) + min;
+        if (min == max) {
+            return min;
+        }
+
+        if (min > max) {
+            throw new IllegalArgumentException(
+                    "min cannot be greater than max"
+            );
+        }
+
+        return random.nextInt(max - min + 1) + min;
+    }
+
+    private <T> T randomFrom(List<T> list) {
+        return list.get(random(0, list.size() - 1));
+    }
+
+    private String chestSetPath(String type) {
+        return "chestset." + type.toLowerCase();
     }
 
     private String toKey(Block block) {
@@ -320,7 +521,19 @@ public class ChestUtil {
     }
 
     private List<?> getList(Map<?, ?> map, String key) {
-        Object val = map.get(key);
-        return val instanceof List ? (List<?>) val : Collections.emptyList();
+        Object value = map.get(key);
+
+        return value instanceof List<?>
+                ? (List<?>) value
+                : Collections.emptyList();
+    }
+
+    private Integer toInt(Object value) {
+        return value instanceof Number
+                ? ((Number) value).intValue()
+                : null;
+    }
+
+    private record RefillData(long createdAt, long delay) {
     }
 }
