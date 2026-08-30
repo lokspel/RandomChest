@@ -12,7 +12,6 @@ Random loot chest plugin for Spigot 1.8.8. Register chests, fill them with rando
 - Chest destruction toggle per type
 - Redstone power control per type
 - Item durability ranges
-- Locale system with `.properties` files
 
 ## Commands
 
