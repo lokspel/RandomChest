@@ -4,7 +4,6 @@ import me.lokspel.randomchest.RandomChest;
 import me.lokspel.randomchest.task.RespawnTask;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
@@ -19,7 +18,6 @@ import org.bukkit.potion.PotionType;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-@SuppressWarnings("deprecation")
 public class ChestUtil {
 
     private final RandomChest plugin;
@@ -160,11 +158,11 @@ public class ChestUtil {
     private ItemStack buildRandomItem(List<Map<?, ?>> items) {
         Map<?, ?> map = items.get(random(0, items.size() - 1));
 
-        int id = getInt(map, "id");
+        int id = ItemUtil.getInt(map, "id");
         if (id <= 0) return null;
 
-        int data = getInt(map, "data");
-        int amount = Math.max(getInt(map, "amount"), 1);
+        int data = ItemUtil.getInt(map, "data");
+        int amount = Math.max(ItemUtil.getInt(map, "amount"), 1);
         String name = (String) map.get("name");
         List<?> lore = getList(map, "lore");
         String skull = (String) map.get("skull");
@@ -175,10 +173,10 @@ public class ChestUtil {
             durabilityRange = (List<Integer>) durabilityObj;
         }
 
-        boolean randomEnchant = getBoolean(map, "random-enchant");
+        boolean randomEnchant = ItemUtil.getBoolean(map, "random-enchant");
         List<?> enchantments = getList(map, "enchantments");
 
-        Material mat = getMaterialById(id);
+        Material mat = MaterialUtil.getMaterialById(id);
         if (mat == null) return null;
 
         if (mat.equals(Material.POTION)) {
@@ -206,8 +204,8 @@ public class ChestUtil {
 
     private ItemStack buildPotion(Map<?, ?> map, int amount) {
         PotionType type = PotionType.valueOf((String) map.get("potion-type"));
-        int level = Math.max(getInt(map, "potion-level"), 1);
-        boolean splash = getBoolean(map, "potion-splash");
+        int level = Math.max(ItemUtil.getInt(map, "potion-level"), 1);
+        boolean splash = ItemUtil.getBoolean(map, "potion-splash");
 
         Potion potion = new Potion(PotionType.WATER);
         potion.setType(type);
@@ -219,17 +217,17 @@ public class ChestUtil {
     }
 
     private void applyRandomEnchant(ItemStack item) {
-        if (isBow(item)) {
+        if (ItemUtil.isBow(item)) {
             randomEnchant(item, Enchantment.ARROW_DAMAGE, Enchantment.ARROW_KNOCKBACK,
                     Enchantment.ARROW_FIRE, Enchantment.ARROW_INFINITE);
-        } else if (isSword(item)) {
+        } else if (ItemUtil.isSword(item)) {
             randomEnchant(item, Enchantment.DAMAGE_ALL, Enchantment.DAMAGE_UNDEAD,
                     Enchantment.DAMAGE_ARTHROPODS, Enchantment.KNOCKBACK, Enchantment.FIRE_ASPECT);
-        } else if (isHelmet(item)) {
+        } else if (ItemUtil.isHelmet(item)) {
             randomEnchant(item, Enchantment.OXYGEN, Enchantment.WATER_WORKER);
-        } else if (isBoots(item)) {
+        } else if (ItemUtil.isBoots(item)) {
             randomEnchant(item, Enchantment.PROTECTION_FALL);
-        } else if (isChestplate(item)) {
+        } else if (ItemUtil.isChestplate(item)) {
             randomEnchant(item, Enchantment.PROTECTION_ENVIRONMENTAL, Enchantment.PROTECTION_FIRE,
                     Enchantment.PROTECTION_EXPLOSIONS, Enchantment.PROTECTION_PROJECTILE);
         }
@@ -248,7 +246,7 @@ public class ChestUtil {
         for (Object obj : enchantments) {
             Map<?, ?> enchMap = (Map<?, ?>) obj;
             String enchName = (String) enchMap.get("name");
-            int enchLevel = Math.max(getInt(enchMap, "level"), 1);
+            int enchLevel = Math.max(ItemUtil.getInt(enchMap, "level"), 1);
 
             Enchantment ench = Enchantment.getByName(enchName);
             if (ench != null) {
@@ -301,12 +299,7 @@ public class ChestUtil {
     }
 
     public Material getMaterialById(int id) {
-        for (Material mat : Material.values()) {
-            if (mat.getId() == id) {
-                return mat;
-            }
-        }
-        return null;
+        return MaterialUtil.getMaterialById(id);
     }
 
     public boolean isSetExist(String type) {
@@ -324,44 +317,6 @@ public class ChestUtil {
                 + "," + block.getX()
                 + "," + block.getY()
                 + "," + block.getZ();
-    }
-
-    private boolean isChestplate(ItemStack item) {
-        Material m = item.getType();
-        return m.equals(Material.LEATHER_CHESTPLATE) || m.equals(Material.IRON_CHESTPLATE)
-                || m.equals(Material.DIAMOND_CHESTPLATE);
-    }
-
-    private boolean isBoots(ItemStack item) {
-        Material m = item.getType();
-        return m.equals(Material.LEATHER_BOOTS) || m.equals(Material.IRON_BOOTS)
-                || m.equals(Material.DIAMOND_BOOTS);
-    }
-
-    private boolean isHelmet(ItemStack item) {
-        Material m = item.getType();
-        return m.equals(Material.LEATHER_HELMET) || m.equals(Material.IRON_HELMET)
-                || m.equals(Material.DIAMOND_HELMET);
-    }
-
-    private boolean isSword(ItemStack item) {
-        Material m = item.getType();
-        return m.equals(Material.WOOD_SWORD) || m.equals(Material.STONE_SWORD)
-                || m.equals(Material.IRON_SWORD) || m.equals(Material.DIAMOND_SWORD);
-    }
-
-    private boolean isBow(ItemStack item) {
-        return item.getType().equals(Material.BOW);
-    }
-
-    private int getInt(Map<?, ?> map, String key) {
-        Object val = map.get(key);
-        return val instanceof Number ? ((Number) val).intValue() : 0;
-    }
-
-    private boolean getBoolean(Map<?, ?> map, String key) {
-        Object val = map.get(key);
-        return val instanceof Boolean && (Boolean) val;
     }
 
     private List<?> getList(Map<?, ?> map, String key) {
