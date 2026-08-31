@@ -1,6 +1,6 @@
 # RandomChest
 
-Random loot chest plugin for Spigot. Register chests, fill them with random items from configurable loot tables, and respawn them on a timer. Cross-version API differences are handled via reflection, no runtime dependencies.
+Random loot chest plugin for Spigot.
 
 ## Features
 
@@ -64,8 +64,8 @@ chestset:
         lore: ["Line 1", "Line 2", "Line 3"] #Description of things
         amount: 1 #amount
       - material: POTION #legacy id: 373
-        potion-type: INSTANT_HEAL #Potion type
-        potion-level: 2 #Potion level
+        potion-type: STRONG_HEALING #Potion type
+        potion-level: 2 #Potion level (legacy; ignored on modern where tiers use STRONG_ names)
         potion-splash: false #To make an explosive potion
       - material: RED_WOOL #legacy id: 35 + data 14
         data: 14 #Thing data (legacy; ignored on modern)
@@ -88,8 +88,8 @@ chestset:
 | `name` | Custom display name |
 | `lore` | Lore lines |
 | `skull` | Player name for skull owner |
-| `potion-type` | Potion effect (only for potion materials) |
-| `potion-level` | Potion level |
+| `potion-type` | Potion effect (only for potion materials). Modern servers: use `STRONG_*` names (e.g. `STRONG_HEALING`) for tier 2. Legacy names like `INSTANT_HEAL` also work |
+| `potion-level` | Potion level (legacy servers; ignored on modern where tiers use `STRONG_*` names) |
 | `potion-splash` | Make it a splash potion |
 
 ### Chest type fields

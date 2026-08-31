@@ -47,8 +47,8 @@ public final class PotionUtil {
     }
 
     /**
-     * Applies a potion effect type onto potion item meta. Silently does nothing
-     * when the chosen effect type is not available on this server version.
+     * Applies a potion effect type onto potion item meta. Returns null when the
+     * modern API is unavailable on this server version.
      */
     public static ItemStack buildMeta(String type, boolean splash, int amount) {
         if (type == null) {
@@ -65,12 +65,13 @@ public final class PotionUtil {
         try {
             Object potionType = resolvePotionType(type, Class.forName("org.bukkit.potion.PotionType"));
             if (potionType == null) {
-                return item;
+                return null;
             }
             Method setBase = meta.getClass().getMethod("setBasePotionType", potionType.getClass());
             setBase.invoke(meta, potionType);
         } catch (ReflectiveOperationException | RuntimeException ignored) {
-            // base potion type not resolvable on this version; item keeps no effect
+            // modern API not available (legacy server) or type not resolvable
+            return null;
         }
 
         item.setItemMeta(meta);

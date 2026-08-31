@@ -25,8 +25,8 @@ chestset:
         lore: ["Line 1", "Line 2", "Line 3"] #Description of things
         amount: 1 #amount
       - material: POTION #legacy id: 373
-        potion-type: INSTANT_HEAL #Potion type
-        potion-level: 2 #Potion level
+        potion-type: STRONG_HEALING #Potion type (modern); legacy: INSTANT_HEAL
+        potion-level: 2 #Potion level (legacy; ignored on modern where tiers use STRONG_ names)
         potion-splash: false #To make an explosive potion
       - material: RED_WOOL #legacy id: 35 + data 14
         data: 14 #Thing data (legacy; ignored on modern)

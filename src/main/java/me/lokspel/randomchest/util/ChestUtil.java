@@ -276,16 +276,15 @@ public class ChestUtil {
         boolean splash = ItemUtil.getBoolean(config, "potion-splash")
                 || MaterialUtil.isSplashPotion(material);
 
-        ItemStack legacy = PotionUtil.buildLegacy(
+        ItemStack modern = PotionUtil.buildMeta(
                 type,
                 splash,
-                level,
                 amount
         );
 
-        return legacy != null
-                ? legacy
-                : PotionUtil.buildMeta(type, splash, amount);
+        return modern != null
+                ? modern
+                : PotionUtil.buildLegacy(type, splash, level, amount);
     }
 
     private void applyRandomEnchant(ItemStack item) {
