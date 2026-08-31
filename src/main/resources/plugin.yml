@@ -3,6 +3,7 @@ version: ${project.version}
 main: me.lokspel.randomchest.RandomChest
 api-version: '1.13'
 description: Random chest loot plugin
+folia-supported: true
 
 commands:
   randomchest:

@@ -136,12 +136,14 @@ public class ChestUtil {
     }
 
     public void startChestsRespawn() {
-        plugin.getServer().getScheduler().runTaskTimer(
-                plugin,
-                new RespawnTask(respawnDelays),
-                20L,
-                20L
-        );
+        for (Location location : respawnDelays.keySet()) {
+            plugin.getFoliaLib().getScheduler().runAtLocationTimer(
+                    location,
+                    new RespawnTask(respawnDelays, location),
+                    20L,
+                    20L
+            );
+        }
     }
 
     public void fill(Chest chest, String type) {

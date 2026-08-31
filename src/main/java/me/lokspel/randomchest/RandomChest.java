@@ -14,6 +14,7 @@ import me.lokspel.randomchest.util.ChestUtil;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bstats.bukkit.Metrics;
+import com.tcoded.folialib.FoliaLib;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -22,11 +23,13 @@ public final class RandomChest extends JavaPlugin {
 
     private MessagesConfig messages;
     private ChestUtil chestUtil;
+    private FoliaLib foliaLib;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
 
+        foliaLib = new FoliaLib(this);
         messages = new MessagesConfig(this);
         chestUtil = new ChestUtil(this);
 
@@ -50,7 +53,9 @@ public final class RandomChest extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        getServer().getScheduler().cancelTasks(this);
+        if (foliaLib != null) {
+            foliaLib.getScheduler().cancelAllTasks();
+        }
         if (chestUtil != null) {
             chestUtil.forceChestsRespawn();
         }
@@ -62,5 +67,9 @@ public final class RandomChest extends JavaPlugin {
 
     public ChestUtil getChestUtil() {
         return chestUtil;
+    }
+
+    public FoliaLib getFoliaLib() {
+        return foliaLib;
     }
 }
