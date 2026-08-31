@@ -13,6 +13,7 @@ import me.lokspel.randomchest.listener.PlayerInteractListener;
 import me.lokspel.randomchest.util.ChestUtil;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bstats.bukkit.Metrics;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -41,6 +42,8 @@ public final class RandomChest extends JavaPlugin {
         pm.registerEvents(new PlayerInteractListener(this), this);
         pm.registerEvents(new BlockBreakListener(this), this);
         pm.registerEvents(new InventoryCloseListener(this), this);
+
+        new Metrics(this, 33763);
 
         chestUtil.startChestsRespawn();
     }
