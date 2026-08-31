@@ -134,7 +134,7 @@ The output jar is `target/RandomChest-1.0-SNAPSHOT.jar`.
 
 ## Requirements
 
-- [*]Spigot/Paper 1.8 – 26.2
+- Spigot/Paper 1.8 – 26.2
 - Java 21+ runtime
 
 > Note: numeric material IDs only resolve on servers where `Material.getId()`
